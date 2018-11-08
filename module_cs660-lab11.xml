@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="module_cs660-lab11" default="compile.module.cs660-lab11">
+  <dirname property="module.cs660-lab11.basedir" file="${ant.file.module_cs660-lab11}"/>
+  
+  <property name="module.jdk.home.cs660-lab11" value="${project.jdk.home}"/>
+  <property name="module.jdk.bin.cs660-lab11" value="${project.jdk.bin}"/>
+  <property name="module.jdk.classpath.cs660-lab11" value="${project.jdk.classpath}"/>
+  
+  <property name="compiler.args.cs660-lab11" value="-encoding UTF-8 -source 8 -target 8 ${compiler.args}"/>
+  
+  <property name="cs660-lab11.output.dir" value="${module.cs660-lab11.basedir}/out/production/CS660-lab11"/>
+  <property name="cs660-lab11.testoutput.dir" value="${module.cs660-lab11.basedir}/out/test/CS660-lab11"/>
+  
+  <path id="cs660-lab11.module.bootclasspath">
+    <!-- Paths to be included in compilation bootclasspath -->
+  </path>
+  
+  <path id="cs660-lab11.module.production.classpath">
+    <path refid="${module.jdk.classpath.cs660-lab11}"/>
+    <path refid="library.lib.classpath"/>
+  </path>
+  
+  <path id="cs660-lab11.runtime.production.module.classpath">
+    <pathelement location="${cs660-lab11.output.dir}"/>
+    <path refid="library.lib.classpath"/>
+  </path>
+  
+  <path id="cs660-lab11.module.classpath">
+    <path refid="${module.jdk.classpath.cs660-lab11}"/>
+    <pathelement location="${cs660-lab11.output.dir}"/>
+    <path refid="library.lib.classpath"/>
+  </path>
+  
+  <path id="cs660-lab11.runtime.module.classpath">
+    <pathelement location="${cs660-lab11.testoutput.dir}"/>
+    <pathelement location="${cs660-lab11.output.dir}"/>
+    <path refid="library.lib.classpath"/>
+  </path>
+  
+  
+  <patternset id="excluded.from.module.cs660-lab11">
+    <patternset refid="ignored.files"/>
+  </patternset>
+  
+  <patternset id="excluded.from.compilation.cs660-lab11">
+    <patternset refid="excluded.from.module.cs660-lab11"/>
+  </patternset>
+  
+  <path id="cs660-lab11.module.test.sourcepath">
+    <dirset dir="${module.cs660-lab11.basedir}">
+      <include name="test"/>
+    </dirset>
+  </path>
+  
+  
+  <target name="compile.module.cs660-lab11" depends="compile.module.cs660-lab11.production,compile.module.cs660-lab11.tests" description="Compile module CS660-lab11"/>
+  
+  <target name="compile.module.cs660-lab11.production" depends="register.custom.compilers" description="Compile module CS660-lab11; production classes"/>
+  
+  <target name="compile.module.cs660-lab11.tests" depends="register.custom.compilers,compile.module.cs660-lab11.production" description="compile module CS660-lab11; test classes" unless="skip.tests">
+    <mkdir dir="${cs660-lab11.testoutput.dir}"/>
+    <javac2 destdir="${cs660-lab11.testoutput.dir}" debug="${compiler.debug}" nowarn="${compiler.generate.no.warnings}" memorymaximumsize="${compiler.max.memory}" fork="true" executable="${module.jdk.bin.cs660-lab11}/javac">
+      <compilerarg line="${compiler.args.cs660-lab11}"/>
+      <bootclasspath refid="cs660-lab11.module.bootclasspath"/>
+      <classpath refid="cs660-lab11.module.classpath"/>
+      <src refid="cs660-lab11.module.test.sourcepath"/>
+      <patternset refid="excluded.from.compilation.cs660-lab11"/>
+    </javac2>
+    
+    <copy todir="${cs660-lab11.testoutput.dir}">
+      <fileset dir="${module.cs660-lab11.basedir}/test">
+        <patternset refid="compiler.resources"/>
+        <type type="file"/>
+      </fileset>
+    </copy>
+  </target>
+  
+  <target name="clean.module.cs660-lab11" description="cleanup module">
+    <delete dir="${cs660-lab11.output.dir}"/>
+    <delete dir="${cs660-lab11.testoutput.dir}"/>
+  </target>
+</project>
