@@ -9,6 +9,15 @@ public class HashEquiJoin extends Operator {
 
     private static final long serialVersionUID = 1L;
 
+    private JoinPredicate joinPred;
+    private DbIterator lIter;
+    private DbIterator rIter;
+    private TupleDesc td;
+
+    transient private Tuple t1 = null;
+    transient private Tuple t2 = null;
+    //private HashMap<>
+
     /**
      * Constructor. Accepts to children to join and the predicate to join them
      * on
@@ -22,37 +31,76 @@ public class HashEquiJoin extends Operator {
      */
     public HashEquiJoin(JoinPredicate p, DbIterator child1, DbIterator child2) {
         // some code goes here
+        joinPred = p;
+        lIter = child1;
+        rIter = child2;
+        td = TupleDesc.merge(lIter.getTupleDesc(),rIter.getTupleDesc());
     }
 
     public JoinPredicate getJoinPredicate() {
         // some code goes here
-        return null;
+        return joinPred;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return td;
     }
     
     public String getJoinField1Name()
     {
         // some code goes here
-	return null;
+	    // return null;
+        return lIter.getTupleDesc().getFieldName(joinPred.getField1());
     }
 
     public String getJoinField2Name()
     {
         // some code goes here
-        return null;
+        // return null;
+        return rIter.getTupleDesc().getFieldName(joinPred.getField2());
     }
-    
+
+    // partition file1 based on field, hashmap <filed, Tuple_lists>
+    HashMap<Object, ArrayList<Tuple>> map = new HashMap<Object, ArrayList<Tuple>>();
+    private final static int MAP_SIZE = 20000;
+
+    private boolean loadMap() throws DbException, TransactionAbortedException {
+        int cnt = 0;
+        map.clear();
+        while (lIter.hasNext()) {
+            t1 = lIter.next();
+            ArrayList<Tuple> list = map.get(t1.getField(joinPred.getField1()));
+            if (list == null) {
+                list = new ArrayList<Tuple>();
+                map.put(t1.getField(joinPred.getField1()), list);
+            }
+            list.add(t1);
+            if (cnt++ == MAP_SIZE)
+                return true;
+        }
+        return cnt > 0;
+
+    }
+
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
+        super.open();
+        lIter.open();
+        rIter.open();
+        loadMap();
     }
 
     public void close() {
         // some code goes here
+        super.close();
+        lIter.close();
+        rIter.close();
+        t1 = null;
+        t2 = null;
+        listIt = null;
+        map.clear();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
@@ -81,18 +129,62 @@ public class HashEquiJoin extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
+        //return null;
+        if (listIt != null && listIt.hasNext()) {
+            return processList();
+        }
+
+        // loop around child2
+        while (rIter.hasNext()) {
+            t2 = rIter.next();
+
+            // if match, create a combined tuple and fill it with the values
+            // from both tuples
+            ArrayList<Tuple> l = map.get(t2.getField(joinPred.getField2()));
+            if (l == null)
+                continue;
+            listIt = l.iterator();
+
+            return processList();
+
+        }
+
+        // child2 is done: advance child1
+        rIter.rewind();
+        if (loadMap()) {
+            return fetchNext();
+        }
+
         return null;
+    }
+
+    private Tuple processList() throws TransactionAbortedException, DbException {
+        t1 = listIt.next();
+
+        int td1n = t1.getTupleDesc().numFields();
+        int td2n = t2.getTupleDesc().numFields();
+
+        // set fields in combined tuple
+        Tuple t = new Tuple(td);
+        for (int i = 0; i < td1n; i++)
+            t.setField(i, t1.getField(i));
+        for (int i = 0; i < td2n; i++)
+            t.setField(td1n + i, t2.getField(i));
+        return t;
     }
 
     @Override
     public DbIterator[] getChildren() {
         // some code goes here
-        return null;
+        // return null;
+        return new DbIterator[] {lIter,rIter};
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
         // some code goes here
+        lIter = children[0];
+        rIter = children[1];
     }
     
 }
