@@ -111,7 +111,19 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            //if(!p.getTableAliasToIdMapping().containsKey(j.t1Alias))
+            //    throw new IllegalArgumentException("not contain this table"+j.t1Alias);
+            //int tableid = p.getTableId(j.t1Alias);
+            int tableid = Database.getCatalog().getTableId(j.t1Alias);
+            TupleDesc td = Database.getCatalog().getDatabaseFile(tableid).getTupleDesc();
+            // tuples per block
+            int blockSize = Join.Block/td.getSize();
+            int fullNum = card1 / blockSize;
+            int left = (card1 - blockSize * fullNum) == 0 ? 0 : 1;
+            // left table fit into how many blocks
+            int blockCard = fullNum + left;
+            double cost = cost1 + blockCard * cost2 + (double) card1 * (double) card2;
+            return cost;
         }
     }
 
@@ -157,6 +169,29 @@ public class JoinOptimizer {
             Map<String, Integer> tableAliasToId) {
         int card = 1;
         // some code goes here
+        int smallerSize = card1 < card2 ? card1 : card2;
+        int biggerSize = card1 > card2 ? card1 : card2;
+        switch (joinOp) {
+            case EQUALS:
+                if (t1pkey && t2pkey) {
+                    card = smallerSize;
+                } else if (t1pkey && !t2pkey) {
+                    card = card2;
+                } else if (!t1pkey && t2pkey) {
+                    card = card1;
+                } else {
+                    card = biggerSize;
+                }
+                break;
+            case GREATER_THAN:
+            case GREATER_THAN_OR_EQ:
+            case LESS_THAN:
+            case LESS_THAN_OR_EQ:
+                card = (int) (card1 * card2 * 0.3);
+                break;
+            default:
+                card = card1 * card2;
+        }
         return card <= 0 ? 1 : card;
     }
 
@@ -221,7 +256,44 @@ public class JoinOptimizer {
 
         // some code goes here
         //Replace the following
-        return joins;
+        //Replace the following
+        // 1. j = set of join nodes
+        // 2. for (i in 1...|j|):  // First find best plan for single join, then for two joins, etc.
+        // 3.     for s in {all length i subsets of j} // Looking at a concrete subset of joins
+        // 4.       bestPlan = {}  // We want to find the best plan for this concrete subset
+        // 5.       for s' in {all length i-1 subsets of s}
+        // 6.            subplan = optjoin(s')  // Look-up in the cache the best query plan for s but with one relation missing
+        // 7.            plan = best way to join (s-s') to subplan // Now find the best plan to extend s' by one join to get s
+        // 8.            if (cost(plan) < cost(bestPlan))
+        // 9.               bestPlan = plan // Update the best plan for computing s
+        // 10.      optjoin(s) = bestPlan
+        // 11. return optjoin(j)
+
+        int numJoinNodes = joins.size();
+        PlanCache pc = new PlanCache();
+        Set<LogicalJoinNode> wholeSet = null;
+        for (int i = 1; i <= numJoinNodes; i++) {
+            Set<Set<LogicalJoinNode>> setOfSubset = this.enumerateSubsets(this.joins, i);
+            for (Set<LogicalJoinNode> s : setOfSubset) {
+                if (s.size() == numJoinNodes) {
+                    wholeSet = s;//save
+                }
+                Double bestCostSofar = Double.MAX_VALUE;
+                CostCard bestPlan = new CostCard();
+                for (LogicalJoinNode toRemove : s) {
+                    CostCard plan = computeCostAndCardOfSubplan(stats, filterSelectivities, toRemove, s, bestCostSofar, pc);
+                    if (plan != null) {
+                        bestCostSofar = plan.cost;
+                        bestPlan = plan;
+                    }
+                }
+                if (bestPlan.plan != null) {
+                    pc.addPlan(s, bestPlan.cost, bestPlan.card, bestPlan.plan);
+                }
+            }
+        }
+        return pc.getOrder(wholeSet);
+        //return joins;
     }
 
     // ===================== Private Methods =================================

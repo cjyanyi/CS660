@@ -16,7 +16,7 @@ public class Join extends Operator {
 
     private TupleIterator joinResults;
     // MySql buffer size
-    private static  final int Block = 131072;
+    public static  final int Block = 131072;
     //private ArrayList<Tuple> tuplesPassed;
     //private Iterator<Tuple> tupleIter;
 
