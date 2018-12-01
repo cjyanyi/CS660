@@ -111,6 +111,8 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
+            //
+            // block nested loop join
             //if(!p.getTableAliasToIdMapping().containsKey(j.t1Alias))
             //    throw new IllegalArgumentException("not contain this table"+j.t1Alias);
             //int tableid = p.getTableId(j.t1Alias);
@@ -124,6 +126,8 @@ public class JoinOptimizer {
             int blockCard = fullNum + left;
             double cost = cost1 + blockCard * cost2 + (double) card1 * (double) card2;
             return cost;
+            // nested-loops join.
+            // return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 

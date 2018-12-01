@@ -178,6 +178,19 @@ public class BufferPool {
         ArrayList<Page> affectedPages = table.insertTuple(tid,t);
         for (Page page:affectedPages){
             page.markDirty(true,tid);
+
+            // if page in pool already, done.
+            if(pageids.get(page.getId()) != null) {
+                //replace old page with new one in case deleteTuple returns a new copy of the page
+                pageids.put(page.getId(), page);
+            }
+            else {
+
+                // put page in pool
+                if(pageids.size() >= NumPages)
+                    evictPage();
+                pageids.put(page.getId(), page);
+            }
         }
     }
 
@@ -259,6 +272,11 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+        for (Page page : pageids.values()) {
+            if (page.isDirty() !=null && page.isDirty()==tid) {
+                flushPage(page.getId());
+            }
+        }
     }
 
     /**
